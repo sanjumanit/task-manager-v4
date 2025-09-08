@@ -4,6 +4,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import taskRoutes from "./routes/tasks.js";
 import reportRoutes from "./routes/reports.js";
+import categoryRoutes from "./routes/categories.js";
 import { initDB } from "./models/init.js";
 
 const app = express();
@@ -14,6 +15,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/categories", categoryRoutes);
 
 await initDB();
 

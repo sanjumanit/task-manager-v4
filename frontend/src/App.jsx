@@ -37,10 +37,7 @@ function Shell({ children }) {
             <Link className="text-gray-700 hover:bg-gray-200 p-2 rounded" to="/admin">Admin</Link>
           </nav>
           <div className="px-4">
-            <button
-              className="w-full text-red-600 hover:bg-gray-100 p-2 rounded mb-2"
-              onClick={() => { localStorage.clear(); window.location.href='/login'; }}
-            >Logout</button>
+            <button className="w-full text-red-600 hover:bg-gray-100 p-2 rounded mb-2" onClick={() => { localStorage.clear(); window.location.href='/login'; }}>Logout</button>
           </div>
           <UserBadge />
         </aside>

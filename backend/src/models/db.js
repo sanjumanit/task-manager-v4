@@ -1,7 +1,5 @@
 import sqlite3 from "sqlite3";
-
 const sqlite = new sqlite3.Database("./taskmanager.db");
-
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
     sqlite.run(sql, params, function (err) {
@@ -10,7 +8,6 @@ function run(sql, params = []) {
     });
   });
 }
-
 function get(sql, params = []) {
   return new Promise((resolve, reject) => {
     sqlite.get(sql, params, function (err, row) {
@@ -19,7 +16,6 @@ function get(sql, params = []) {
     });
   });
 }
-
 function all(sql, params = []) {
   return new Promise((resolve, reject) => {
     sqlite.all(sql, params, function (err, rows) {
@@ -28,5 +24,4 @@ function all(sql, params = []) {
     });
   });
 }
-
 export default { run, get, all };

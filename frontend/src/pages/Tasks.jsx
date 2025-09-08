@@ -3,7 +3,8 @@ import api from '../api.js';
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
-  const [form, setForm] = useState({ title:'', description:'', priority:'medium', dueDate:'', assigneeId:'', category:'' });
+  const [categories, setCategories] = useState([]);
+  const [form, setForm] = useState({ title:'', description:'', priority:'medium', dueDate:'', assigneeId:'', categoryId:'' });
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   async function load() {
@@ -11,12 +12,19 @@ export default function Tasks() {
     setTasks(res.data);
   }
 
-  useEffect(() => { load(); }, []);
+  async function loadCats() {
+    try {
+      const res = await api.get('/categories');
+      setCategories(res.data);
+    } catch (e) { console.error(e); }
+  }
+
+  useEffect(() => { load(); loadCats(); }, []);
 
   const create = async (e) => {
     e.preventDefault();
-    await api.post('/tasks', { ...form, assigneeId: form.assigneeId ? Number(form.assigneeId) : null });
-    setForm({ title:'', description:'', priority:'medium', dueDate:'', assigneeId:'', category:'' });
+    await api.post('/tasks', { ...form, assigneeId: form.assigneeId ? Number(form.assigneeId) : null, categoryId: form.categoryId ? Number(form.categoryId) : null });
+    setForm({ title:'', description:'', priority:'medium', dueDate:'', assigneeId:'', categoryId:'' });
     load();
   };
 
@@ -49,54 +57,51 @@ export default function Tasks() {
             <input className="border p-2 rounded md:col-span-2" placeholder="Description" value={form.description} onChange={e=>setForm({...form, description:e.target.value})} />
             <input className="border p-2 rounded" type="date" value={form.dueDate} onChange={e=>setForm({...form, dueDate:e.target.value})} />
             <input className="border p-2 rounded" placeholder="Assignee ID (optional)" value={form.assigneeId} onChange={e=>setForm({...form, assigneeId:e.target.value})} />
-            <select className="border p-2 rounded" value={form.category} onChange={e=>setForm({...form, category:e.target.value})}>
+            <select className="border p-2 rounded" value={form.categoryId} onChange={e=>setForm({...form, categoryId:e.target.value})}>
               <option value="">No category</option>
-              <option value="bug">Bug</option>
-              <option value="feature">Feature</option>
-              <option value="improvement">Improvement</option>
-              <option value="maintenance">Maintenance</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button className="bg-blue-600 text-white py-2 rounded md:col-span-2">Create</button>
           </form>
         </div>
       )}
 
-      <div className="bg-white shadow rounded overflow-x-auto">
-        <table className="min-w-full table-auto">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 text-left">ID</th>
-              <th className="px-4 py-2 text-left">Title</th>
-              <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-left">Priority</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Due</th>
-              <th className="px-4 py-2 text-left">Assignee</th>
-              <th className="px-4 py-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map(t => (
-              <tr key={t.id} className="border-t">
-                <td className="px-4 py-2">{t.id}</td>
-                <td className="px-4 py-2">{t.title}</td>
-                <td className="px-4 py-2 capitalize">{t.category || '-'}</td>
-                <td className="px-4 py-2 capitalize">{t.priority}</td>
-                <td className="px-4 py-2 capitalize">{t.status}</td>
-                <td className="px-4 py-2">{t.dueDate || '-'}</td>
-                <td className="px-4 py-2">{t.assigneeName || t.assigneeEmail || 'Unassigned'}</td>
-                <td className="px-4 py-2 space-x-2">
-                  <button className="px-2 py-1 bg-emerald-600 text-white rounded" onClick={()=>updateStatus(t.id, 'in-progress')}>Start</button>
-                  <button className="px-2 py-1 bg-indigo-600 text-white rounded" onClick={()=>updateStatus(t.id, 'completed')}>Complete</button>
-                  {(user.role !== 'member') && (
-                    <button className="px-2 py-1 bg-amber-600 text-white rounded" onClick={()=>reassign(t.id)}>Reassign</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <div className="bg-white shadow rounded overflow-x-auto">
+    <table className="min-w-full table-auto">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="px-4 py-2 text-left">ID</th>
+          <th className="px-4 py-2 text-left">Title</th>
+          <th className="px-4 py-2 text-left">Category</th>
+          <th className="px-4 py-2 text-left">Priority</th>
+          <th className="px-4 py-2 text-left">Status</th>
+          <th className="px-4 py-2 text-left">Due</th>
+          <th className="px-4 py-2 text-left">Assignee</th>
+          <th className="px-4 py-2 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tasks.map(t => (
+          <tr key={t.id} className="border-t">
+            <td className="px-4 py-2">{t.id}</td>
+            <td className="px-4 py-2">{t.title}</td>
+            <td className="px-4 py-2 capitalize">{t.categoryName || '-'}</td>
+            <td className="px-4 py-2 capitalize">{t.priority}</td>
+            <td className="px-4 py-2 capitalize">{t.status}</td>
+            <td className="px-4 py-2">{t.dueDate || '-'}</td>
+            <td className="px-4 py-2">{t.assigneeName || 'Unassigned'}</td>
+            <td className="px-4 py-2 space-x-2">
+              <button className="px-2 py-1 bg-emerald-600 text-white rounded" onClick={()=>updateStatus(t.id, 'in-progress')}>Start</button>
+              <button className="px-2 py-1 bg-indigo-600 text-white rounded" onClick={()=>updateStatus(t.id, 'completed')}>Complete</button>
+              {(user.role !== 'member') && (
+                <button className="px-2 py-1 bg-amber-600 text-white rounded" onClick={()=>reassign(t.id)}>Reassign</button>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
   );
 }
