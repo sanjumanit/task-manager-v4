@@ -1,0 +1,1 @@
+Run backend: cd backend && npm install && npm run dev\nRun frontend: cd frontend && npm install && npm run dev\nDefault admin: admin@example.com / admin123\n
