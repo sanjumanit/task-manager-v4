@@ -5,6 +5,9 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ name:'', email:'', password:'', role:'member' });
 
+  // get logged-in user info from localStorage (you may use context instead if you already have it)
+  const currentUser = JSON.parse(localStorage.getItem("user"));
+
   async function loadUsers() {
     try {
       const res = await api.get('/users');
@@ -19,6 +22,17 @@ export default function Admin() {
     await api.post('/users', form);
     setForm({ name:'', email:'', password:'', role:'member' });
     loadUsers();
+  };
+
+  const deleteUser = async (id) => {
+    if (!window.confirm("Delete this user?")) return;
+    try {
+      await api.delete(`/users/${id}`);
+      alert("User deleted");
+      loadUsers();
+    } catch (e) {
+      alert("Error deleting user");
+    }
   };
 
   return (
@@ -60,7 +74,9 @@ export default function Admin() {
             <option value="manager">manager</option>
             <option value="member">member</option>
           </select>
-          <button className="bg-blue-600 text-white py-2 rounded md:col-span-4">Create</button>
+          <button className="bg-blue-600 text-white py-2 rounded md:col-span-4">
+            Create
+          </button>
         </form>
       </div>
 
@@ -72,6 +88,7 @@ export default function Admin() {
               <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">Email</th>
               <th className="px-4 py-2 text-left">Role</th>
+              <th className="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -80,6 +97,18 @@ export default function Admin() {
                 <td className="px-4 py-2">{u.name}</td>
                 <td className="px-4 py-2">{u.email}</td>
                 <td className="px-4 py-2">{u.role}</td>
+                <td className="px-4 py-2 space-x-2">
+                  {/* Show Delete button only if logged-in user is admin or manager */}
+                  {/* {(currentUser?.role === "admin" || currentUser?.role === "manager") && ( */}
+                  {(currentUser?.role === "admin") && (
+                    <button
+                      className="text-red-600 text-sm"
+                      onClick={() => deleteUser(u.id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

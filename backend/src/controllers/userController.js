@@ -26,15 +26,8 @@ export async function listUsers(req, res) {
 }
 
 // Delete user
-export async function deleteUser(req, res) {
-  const { id } = req.params;
-  try {
-    await db.run('DELETE FROM users WHERE id = ?', [id]);
-    res.json({ message: 'User deleted' });
-  } catch (e) {
-    res.status(400).json({ message: 'User delete failed', error: e.message });
-  }
-}
+
+export async function deleteUser(req,res){ const {id}=req.params; await db.run('DELETE FROM users WHERE id=?',[id]); res.json({message:'User deleted'}); }
 
 // Reset / Set password
 export async function resetPassword(req, res) {
