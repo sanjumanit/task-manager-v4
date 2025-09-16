@@ -26,9 +26,18 @@ export default function Admin() {
 
   const createUser = async (e) => {
     e.preventDefault();
-    await api.post("/users", form);
-    setForm({ name: "", email: "", password: "", role: "member" });
-    loadUsers();
+    try {
+      const res = await api.post("/users", form);
+      setStatus({ type: "success", message: res.data.message || "User created successfully" });
+      setForm({ name: "", email: "", password: "", role: "member" });
+      loadUsers();
+    } catch (e) {
+      console.error("Create user error:", e);
+      setStatus({
+        type: "error",
+        message: e.response?.data?.message || "Error creating user",
+      });
+    }
   };
 
   const deleteUser = async (id) => {

@@ -162,6 +162,59 @@ res.json({
 });
 }
 
+export async function updateTask(req, res) {
+    const { id } = req.params;
+    const { title, description, status, categoryId, assignedTo } = req.body;
 
+    // Fetch the existing task first
+    const task = await db.get("SELECT * FROM tasks WHERE id = ?", [id]);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
 
+    // Only admin or assigned user can edit
+    if (req.user.role !== "admin" && task.assignedTo !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized to edit this task" });
+    }
+
+    await db.run(
+      `UPDATE tasks 
+       SET title = ?, description = ?, status = ?, categoryId = ?, assigneeId = ?
+       WHERE id = ?`,
+      [
+        title ?? task.title,
+        description ?? task.description,
+        status ?? task.status,
+        categoryId ?? task.categoryId,
+        assignedTo ?? task.assigneeId,
+        id,
+      ]
+    );
+
+    res.json({ message: "Task updated successfully" });
+  
+}
+
+// Delete Task
+export const deleteTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // only admin or manager can delete
+    if (req.user.role !== "admin" && req.user.role !== "manager") {
+      return res.status(403).json({ message: "Not authorized to delete tasks" });
+    }
+
+    const result = await db.run("DELETE FROM tasks WHERE id = ?", [id]);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.json({ message: "Task deleted successfully" });
+  } catch (err) {
+    console.error("Delete Task Error:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 

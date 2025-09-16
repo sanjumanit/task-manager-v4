@@ -4,7 +4,7 @@ import api from "../api.js";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { FiDownload, FiPlus, FiX } from "react-icons/fi";
+import { FiDownload, FiPlus, FiX, FiEdit, FiTrash2, FiPlay, FiCheck, FiRepeat } from "react-icons/fi";
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
@@ -28,6 +28,8 @@ export default function Tasks() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null); // Track editing task
+  const [message, setMessage] = useState(null); // 🔹 success/error messages
   const pageSize = 10;
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -56,8 +58,12 @@ export default function Tasks() {
   }, [tasks, filters]);
 
   async function load() {
-    const res = await api.get("/tasks");
-    setTasks(res.data);
+    try {
+      const res = await api.get("/tasks");
+      setTasks(res.data);
+    } catch (e) {
+      showMessage("Failed to load tasks", "error");
+    }
   }
 
   async function loadCats() {
@@ -77,13 +83,37 @@ export default function Tasks() {
       console.error(e);
     }
   }
-
-  const create = async (e) => {
+  
+const showMessage = (text, type = "success") => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 4000);
+  };
+  
+const createOrUpdate = async (e) => {
     e.preventDefault();
-    await api.post("/tasks", {
-      ...form,
-      categoryId: form.categoryId ? Number(form.categoryId) : null,
-    });
+    try {
+      if (editId) {
+        await api.put(`/tasks/${editId}`, {
+          ...form,
+          categoryId: form.categoryId ? Number(form.categoryId) : null,
+        });
+        showMessage("Task updated successfully", "success");
+      } else {
+        await api.post("/tasks", {
+          ...form,
+          categoryId: form.categoryId ? Number(form.categoryId) : null,
+        });
+        showMessage("Task created successfully", "success");
+      }
+      resetForm();
+      load();
+    } catch (err) {
+      const msg = err.response?.data?.message || "Failed to save task";
+      showMessage(msg, "error");
+    }
+  };
+
+  const resetForm = () => {
     setForm({
       title: "",
       description: "",
@@ -92,20 +122,55 @@ export default function Tasks() {
       assigneeEmail: "",
       categoryId: "",
     });
+    setEditId(null);
     setShowForm(false);
-    load();
   };
 
   const updateStatus = async (id, status) => {
-    await api.put(`/tasks/${id}/status`, { status });
-    load();
+    try {
+      await api.put(`/tasks/${id}/status`, { status });
+      showMessage(`Task marked as ${status}`, "success");
+      load();
+    } catch (err) {
+      showMessage("Failed to update status", "error");
+    }
   };
 
   const reassign = async (id) => {
     const assigneeEmail = prompt("Enter new assignee email:");
     if (!assigneeEmail) return;
-    await api.put(`/tasks/${id}/reassign`, { assigneeEmail });
-    load();
+    try {
+      await api.put(`/tasks/${id}/reassign`, { assigneeEmail });
+      showMessage("Task reassigned successfully", "success");
+      load();
+    } catch (err) {
+      const msg = err.response?.data?.message || "Failed to reassign task";
+      showMessage(msg, "error");
+    }
+  };
+  
+  const deleteTask = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await api.delete(`/tasks/${id}`);
+      showMessage("Task deleted successfully", "success");
+      load();
+    } catch {
+      showMessage("Failed to delete task", "error");
+    }
+  };
+  
+  const startEdit = (task) => {
+    setForm({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      dueDate: task.dueDate || "",
+      assigneeEmail: task.assigneeEmail || "",
+      categoryId: task.categoryId || "",
+    });
+    setEditId(task.id);
+    setShowForm(true);
   };
 
   // ===== Export Functions =====
@@ -222,25 +287,44 @@ export default function Tasks() {
   };
 
   return (
-    <div className="p-6">
-      {/* Header + Create */}
+     <div className="p-6">
+      {/* 🔹 Alert Bar */}
+      {message && (
+        <div
+          className={`mb-4 px-4 py-2 rounded ${
+            message.type === "success"
+              ? "bg-green-100 text-green-700 border border-green-300"
+              : "bg-red-100 text-red-700 border border-red-300"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+      {/* Header + Create/Edit */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Tasks</h2>
         {user.role !== "member" && (
           <button
             className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm && editId) {
+                resetForm();
+              } else {
+                setShowForm(!showForm);
+              }
+            }}
           >
-            {showForm ? <><FiX /> Close</> : <><FiPlus /> Create Task</>}
+            {showForm ? <><FiX /> Cancel</> : <><FiPlus /> Create Task</>}
           </button>
         )}
       </div>
-
-      {/* Toggleable Create Task Form */}
+      {/* Toggleable Create/Edit Form */}
       {showForm && user.role !== "member" && (
         <div className="bg-white shadow p-4 rounded mb-6">
-          <h3 className="font-semibold mb-4">Create Task</h3>
-          <form onSubmit={create} className="grid md:grid-cols-2 gap-4">
+          <h3 className="font-semibold mb-4">
+            {editId ? "Edit Task" : "Create Task"}
+          </h3>
+          <form onSubmit={createOrUpdate} className="grid md:grid-cols-2 gap-4">
             <input className="border p-2 rounded" placeholder="Title" value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} required />
             <select className="border p-2 rounded" value={form.priority} onChange={(e)=>setForm({...form,priority:e.target.value})}>
               <option value="low">Low</option>
@@ -257,11 +341,12 @@ export default function Tasks() {
               <option value="">No category</option>
               {categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <button className="bg-blue-600 text-white py-2 rounded md:col-span-2 hover:bg-blue-700">Create</button>
+            <button className="bg-blue-600 text-white py-2 rounded md:col-span-2 hover:bg-blue-700">
+              {editId ? "Update Task" : "Create Task"}
+            </button>
           </form>
         </div>
       )}
-
       {/* Toolbar: Filters + Export */}
       <div className="flex flex-wrap gap-2 items-center justify-between mb-4">
         <div className="flex flex-wrap gap-2">
@@ -353,11 +438,47 @@ export default function Tasks() {
                 </td>
                 <td className="px-4 py-2">{t.dueDate || "-"}</td>
                 <td className="px-4 py-2">{t.assigneeName ? `${t.assigneeName} (${t.assigneeEmail})` : "Unassigned"}</td>
-                <td className="px-4 py-2 flex flex-wrap gap-1">
-                  <button className="px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700" onClick={()=>updateStatus(t.id,"in-progress")}>Start</button>
-                  <button className="px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700" onClick={()=>updateStatus(t.id,"completed")}>Complete</button>
+                <td className="px-4 py-2 flex gap-2">
+                  <button
+                    title="Start Task"
+                    className="p-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                    onClick={() => updateStatus(t.id, "in-progress")}
+                  >
+                    <FiPlay />
+                  </button>
+                  <button
+                    title="Complete Task"
+                    className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                    onClick={() => updateStatus(t.id, "completed")}
+                  >
+                    <FiCheck />
+                  </button>
                   {user.role !== "member" && (
-                    <button className="px-2 py-1 bg-amber-600 text-white rounded hover:bg-amber-700" onClick={()=>reassign(t.id)}>Reassign</button>
+                    <>
+                      <button
+                        title="Reassign Task"
+                        className="p-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+                        onClick={() => reassign(t.id)}
+                      >
+                        <FiRepeat />
+                      </button>
+                      <button
+                        title="Edit Task"
+                        className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => startEdit(t)}
+                      >
+                        <FiEdit />
+                      </button>
+                      {(user.role === "admin" || user.role === "manager") && (
+                        <button
+                          title="Delete Task"
+                          className="p-2 bg-red-600 text-white rounded hover:bg-red-700"
+                          onClick={() => deleteTask(t.id)}
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
+                    </>
                   )}
                 </td>
               </tr>
